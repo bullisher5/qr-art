@@ -1,4 +1,5 @@
-const fetch = require('node-fetch');
+// Netlify Function для генерации AI Art QR через Replicate
+// Используем нативный fetch (Node.js 18+), node-fetch больше не нужен
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -18,7 +19,6 @@ exports.handler = async (event) => {
             };
         }
 
-        // Проверяем, есть ли токен
         if (!process.env.REPLICATE_API_TOKEN) {
             return {
                 statusCode: 500,
@@ -48,7 +48,6 @@ exports.handler = async (event) => {
         const prediction = await response.json();
         console.log('Replicate initial response:', JSON.stringify(prediction).substring(0, 500));
 
-        // Проверяем на ошибки от Replicate
         if (prediction.error) {
             return {
                 statusCode: 500,
@@ -63,7 +62,6 @@ exports.handler = async (event) => {
             };
         }
 
-        // Если результат ещё не готов, ждём
         if (prediction.status === 'processing' || prediction.status === 'starting') {
             console.log('Waiting for completion...');
             const result = await waitForCompletion(prediction.urls.get);
@@ -73,7 +71,6 @@ exports.handler = async (event) => {
             };
         }
 
-        // Если сразу готов
         if (prediction.status === 'succeeded') {
             return {
                 statusCode: 200,
@@ -81,7 +78,6 @@ exports.handler = async (event) => {
             };
         }
 
-        // Любой другой статус
         return {
             statusCode: 500,
             body: JSON.stringify({ 
