@@ -1,5 +1,5 @@
 // Netlify Function для генерации AI Art QR через Replicate
-// Используем нативный fetch (Node.js 18+), node-fetch больше не нужен
+// Используем нативный fetch (Node.js 18+)
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -19,7 +19,7 @@ exports.handler = async (event) => {
             };
         }
 
-        if (!process.env.REPLICATE_API_TOKEN) {
+        if (!process.env.REPLICATE_TOKEN) {
             return {
                 statusCode: 500,
                 body: JSON.stringify({ error: 'API token not configured on server' }),
@@ -33,7 +33,7 @@ exports.handler = async (event) => {
         const response = await fetch('https://api.replicate.com/v1/predictions', {
             method: 'POST',
             headers: {
-                'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+                'Authorization': `Token ${process.env.REPLICATE_TOKEN}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -103,7 +103,7 @@ async function waitForCompletion(getUrl) {
         console.log(`Polling attempt ${attempts + 1}...`);
         const response = await fetch(getUrl, {
             headers: {
-                'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+                'Authorization': `Token ${process.env.REPLICATE_TOKEN}`,
             },
         });
         const data = await response.json();
