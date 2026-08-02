@@ -1,44 +1,99 @@
+// === DOM элементы ===
 const generateBtn = document.getElementById('generate-btn');
 const downloadBtn = document.getElementById('download-btn');
 const textInput = document.getElementById('text-input');
 const imageInput = document.getElementById('image-input');
 const qrResult = document.getElementById('qr-result');
+const statusMsg = document.getElementById('status-message');
+const colorSection = document.getElementById('color-section');
+const colorPicker = document.getElementById('color-picker');
+const classicModeBtn = document.getElementById('classic-mode-btn');
+const aiModeBtn = document.getElementById('ai-mode-btn');
+const aiCounter = document.getElementById('ai-counter');
+const countRemaining = document.getElementById('count-remaining');
 
-// Добавляем поле выбора цвета
-const colorPicker = document.createElement('input');
-colorPicker.type = 'color';
-colorPicker.value = '#00ffff';
-colorPicker.id = 'color-picker';
-colorPicker.style.cssText = `
-    display: block;
-    margin: 15px auto 0;
-    width: 60px;
-    height: 40px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background: #0d0d0d;
-    cursor: pointer;
-`;
-generateBtn.parentNode.insertBefore(colorPicker, generateBtn);
-
-const colorLabel = document.createElement('label');
-colorLabel.textContent = 'QR color:';
-colorLabel.style.cssText = 'display: block; margin-top: 15px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: #aaaaaa;';
-colorPicker.parentNode.insertBefore(colorLabel, colorPicker);
-
-// Переменная для хранения URL логотипа (нужна при скачивании)
+// === Состояние ===
+let currentMode = 'classic'; // 'classic' или 'ai'
 let logoDataUrl = null;
 
-generateBtn.addEventListener('click', function() {
+// === Счётчик AI-генераций (localStorage) ===
+function getAIUsage() {
+    const today = new Date().toDateString();
+    const stored = JSON.parse(localStorage.getItem('ai-usage') || '{}');
+    if (stored.date !== today) {
+        return { date: today, count: 0 };
+    }
+    return stored;
+}
+
+function incrementAIUsage() {
+    const usage = getAIUsage();
+    usage.count += 1;
+    localStorage.setItem('ai-usage', JSON.stringify(usage));
+    updateAICounter();
+}
+
+function updateAICounter() {
+    const usage = getAIUsage();
+    const remaining = Math.max(0, 3 - usage.count);
+    countRemaining.textContent = remaining;
+    if (remaining <= 0) {
+        generateBtn.disabled = true;
+        generateBtn.style.opacity = '0.5';
+        statusMsg.textContent = 'Free AI limit reached. Come back tomorrow!';
+    } else {
+        generateBtn.disabled = false;
+        generateBtn.style.opacity = '1';
+    }
+}
+
+// === Переключение режимов ===
+classicModeBtn.addEventListener('click', function() {
+    currentMode = 'classic';
+    classicModeBtn.classList.add('active');
+    aiModeBtn.classList.remove('active');
+    colorSection.style.display = 'block';
+    aiCounter.style.display = 'none';
+    statusMsg.textContent = '';
+    generateBtn.textContent = 'Generate QR Code';
+    qrResult.innerHTML = '<p>Your QR code will appear here</p>';
+    downloadBtn.style.display = 'none';
+});
+
+aiModeBtn.addEventListener('click', function() {
+    currentMode = 'ai';
+    aiModeBtn.classList.add('active');
+    classicModeBtn.classList.remove('active');
+    colorSection.style.display = 'none';
+    aiCounter.style.display = 'block';
+    updateAICounter();
+    statusMsg.textContent = '';
+    generateBtn.textContent = 'Generate AI Art QR';
+    qrResult.innerHTML = '<p>Your AI art QR will appear here</p>';
+    downloadBtn.style.display = 'none';
+});
+
+// === Генерация ===
+generateBtn.addEventListener('click', async function() {
     const text = textInput.value.trim();
 
     if (text === '') {
-        alert('Please enter text or a link!');
+        statusMsg.textContent = 'Please enter text or a link!';
         return;
     }
 
+    if (currentMode === 'classic') {
+        generateClassicQR(text);
+    } else {
+        await generateAIQR(text);
+    }
+});
+
+// === Classic QR (как раньше) ===
+function generateClassicQR(text) {
     qrResult.innerHTML = '';
     logoDataUrl = null;
+    statusMsg.textContent = '';
 
     const selectedColor = colorPicker.value;
     new QRCode(qrResult, {
@@ -54,7 +109,6 @@ generateBtn.addEventListener('click', function() {
         const reader = new FileReader();
         reader.onload = function(e) {
             logoDataUrl = e.target.result;
-
             const img = document.createElement('img');
             img.src = logoDataUrl;
             img.style.cssText = `
@@ -69,7 +123,6 @@ generateBtn.addEventListener('click', function() {
                 padding: 4px;
                 box-shadow: 0 0 10px ${selectedColor}80;
             `;
-
             qrResult.style.position = 'relative';
             qrResult.appendChild(img);
         };
@@ -77,42 +130,94 @@ generateBtn.addEventListener('click', function() {
     }
 
     downloadBtn.style.display = 'inline-block';
-});
+}
 
-downloadBtn.addEventListener('click', function() {
-    const qrCanvas = qrResult.querySelector('canvas');
-    if (!qrCanvas) {
-        alert('Generate a QR code first!');
+// === AI Art QR ===
+async function generateAIQR(text) {
+    const usage = getAIUsage();
+    if (usage.count >= 3) {
+        statusMsg.textContent = 'Free AI limit reached. Come back tomorrow!';
         return;
     }
 
-    // Если есть логотип — рисуем его на canvas перед скачиванием
+    if (!imageInput.files || !imageInput.files[0]) {
+        statusMsg.textContent = 'Please choose an image for AI style!';
+        return;
+    }
+
+    statusMsg.textContent = '✨ Generating AI art... This may take up to 30 seconds.';
+    qrResult.innerHTML = '<p style="color: #00ffff;">🎨 AI is creating your art QR...</p>';
+    downloadBtn.style.display = 'none';
+
+    // Конвертируем картинку в base64
+    const file = imageInput.files[0];
+    const base64Image = await toBase64(file);
+
+    try {
+        const response = await fetch('/.netlify/functions/generate-art-qr', {
+            method: 'POST',
+            body: JSON.stringify({
+                text: text,
+                image: base64Image,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (data.output && data.output.length > 0) {
+            // Показываем AI-арт
+            qrResult.innerHTML = `<img src="${data.output[0]}" alt="AI QR Art" style="max-width: 100%; border-radius: 10px;">`;
+            statusMsg.textContent = '✅ AI art QR generated!';
+            incrementAIUsage();
+            downloadBtn.style.display = 'inline-block';
+            // Сохраняем URL картинки для скачивания
+            logoDataUrl = data.output[0];
+        } else if (data.status === 'processing') {
+            statusMsg.textContent = '⏳ Still processing... Click Generate again.';
+        } else {
+            statusMsg.textContent = '❌ Generation failed. Try a different image.';
+        }
+    } catch (error) {
+        statusMsg.textContent = '❌ Server error. Please try again.';
+        console.error(error);
+    }
+}
+
+// === Скачивание ===
+downloadBtn.addEventListener('click', function() {
+    if (currentMode === 'classic') {
+        downloadClassicQR();
+    } else {
+        downloadAIQR();
+    }
+});
+
+function downloadClassicQR() {
+    const qrCanvas = qrResult.querySelector('canvas');
+    if (!qrCanvas) {
+        statusMsg.textContent = 'Generate a QR code first!';
+        return;
+    }
+
     if (logoDataUrl) {
         const mergedCanvas = document.createElement('canvas');
         mergedCanvas.width = qrCanvas.width;
         mergedCanvas.height = qrCanvas.height;
         const ctx = mergedCanvas.getContext('2d');
-
-        // Рисуем QR
         ctx.drawImage(qrCanvas, 0, 0);
 
-        // Рисуем логотип по центру
         const logoImg = new Image();
         logoImg.onload = function() {
             const logoSize = 60;
             const x = (mergedCanvas.width - logoSize) / 2;
             const y = (mergedCanvas.height - logoSize) / 2;
 
-            // Белая подложка под логотип
             ctx.fillStyle = 'white';
             ctx.beginPath();
             ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 8);
             ctx.fill();
-
-            // Сам логотип
             ctx.drawImage(logoImg, x, y, logoSize, logoSize);
 
-            // Скачиваем
             const link = document.createElement('a');
             link.download = 'qr-code.png';
             link.href = mergedCanvas.toDataURL('image/png');
@@ -120,34 +225,36 @@ downloadBtn.addEventListener('click', function() {
         };
         logoImg.src = logoDataUrl;
     } else {
-        // Без логотипа — просто скачиваем canvas
         const link = document.createElement('a');
         link.download = 'qr-code.png';
         link.href = qrCanvas.toDataURL('image/png');
         link.click();
     }
-});
+}
 
-// Стили для кнопки скачивания
-downloadBtn.style.cssText = `
-    display: none;
-    margin-top: 15px;
-    background: linear-gradient(45deg, #ff00ff, #00ffff);
-    border: none;
-    color: #000;
-    font-weight: bold;
-    padding: 12px 25px;
-    border-radius: 30px;
-    font-size: 1rem;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    transition: 0.3s;
-    box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
-`;
-downloadBtn.addEventListener('mouseenter', function() {
-    this.style.transform = 'scale(1.05)';
-});
-downloadBtn.addEventListener('mouseleave', function() {
-    this.style.transform = 'scale(1)';
-});
+function downloadAIQR() {
+    if (!logoDataUrl) {
+        statusMsg.textContent = 'Generate an AI QR first!';
+        return;
+    }
+    const link = document.createElement('a');
+    link.download = 'ai-qr-art.png';
+    link.href = logoDataUrl;
+    link.click();
+}
+
+// === Вспомогательные функции ===
+function toBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+        };
+        reader.onerror = reject;
+    });
+}
+
+// === Инициализация ===
+updateAICounter();
