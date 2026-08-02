@@ -1,0 +1,110 @@
+/* === Базовые настройки всей страницы === */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #0a0a0a; /* тёмный, почти чёрный фон */
+    color: #e0e0e0; /* светло-серый текст */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* на весь экран */
+}
+
+/* Контейнер-центровщик */
+.container {
+    width: 90%;
+    max-width: 600px;
+    background: #1a1a1a; /* тёмно-серая карточка */
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2); /* неоновое свечение */
+    text-align: center;
+}
+
+/* Заголовок */
+h1 {
+    color: #00ffff; /* циан, неон */
+    text-shadow: 0 0 10px #00ffff;
+    margin-bottom: 25px;
+}
+
+/* Подписи к полям */
+label {
+    display: block;
+    margin-top: 15px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #aaaaaa;
+}
+
+/* Поле ввода текста */
+input[type="text"] {
+    width: 80%;
+    padding: 12px;
+    margin: 10px auto;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: 0.3s;
+}
+input[type="text"]:focus {
+    border-color: #00ffff;
+    box-shadow: 0 0 8px #00ffff;
+}
+
+/* Поле загрузки файла (стилизуем кнопку) */
+input[type="file"] {
+    margin: 10px auto;
+    color: #ccc;
+    background: #0d0d0d;
+    border: 1px solid #333;
+    padding: 10px;
+    border-radius: 8px;
+    width: 80%;
+    cursor: pointer;
+    transition: 0.3s;
+}
+input[type="file"]:hover {
+    border-color: #ff00ff; /* розовый неон при наведении */
+    box-shadow: 0 0 8px #ff00ff;
+}
+
+/* Кнопка генерации */
+button {
+    background: linear-gradient(45deg, #00ffff, #ff00ff);
+    border: none;
+    color: #000;
+    font-weight: bold;
+    padding: 14px 30px;
+    margin-top: 25px;
+    border-radius: 30px;
+    font-size: 1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: 0.3s;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(255, 0, 255, 0.6);
+}
+
+/* Блок для результата */
+#qr-result {
+    margin-top: 30px;
+    padding: 15px;
+    background: #0d0d0d;
+    border-radius: 12px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    border: 1px dashed #333;
+}

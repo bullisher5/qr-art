@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI QR-арт</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Создай арт-QR</h1>
+
+        <label for="text-input">Что зашифровать:</label>
+        <input type="text" id="text-input" placeholder="https://example.com или любой текст">
+
+        <label for="image-input">Выбери картинку для стиля:</label>
+        <input type="file" id="image-input" accept="image/*">
+
+        <button id="generate-btn">Сгенерировать QR-код</button>
+
+        <div id="qr-result">
+            <p>Твой QR-код будет здесь</p>
+        </div>
+    </div>
+<!-- Библиотека для создания QR-кодов -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<!-- Наш скрипт -->
+<script src="app.js"></script>
+</body>
+</html>
