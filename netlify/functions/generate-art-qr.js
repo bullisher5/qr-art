@@ -37,7 +37,7 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: 'qr2ai/3d_qr_code_ai_art_generator:dbd6e68583b30030f872f6aecb091b60979bc80ccfc8d2f03d575383ebbab13f',
+                version: 'huggingface-projects/QR-code-AI-art-generator',
                 input: {
                     url: text,
                     image: image,
