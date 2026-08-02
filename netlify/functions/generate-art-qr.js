@@ -1,7 +1,6 @@
 const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
-    // Разрешаем только POST-запросы
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -19,7 +18,18 @@ exports.handler = async (event) => {
             };
         }
 
-        // Отправляем запрос к Replicate
+        // Проверяем, есть ли токен
+        if (!process.env.REPLICATE_API_TOKEN) {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'API token not configured on server' }),
+            };
+        }
+
+        console.log('Sending request to Replicate...');
+        console.log('Text:', text);
+        console.log('Image length:', image.length);
+
         const response = await fetch('https://api.replicate.com/v1/predictions', {
             method: 'POST',
             headers: {
@@ -36,9 +46,26 @@ exports.handler = async (event) => {
         });
 
         const prediction = await response.json();
+        console.log('Replicate initial response:', JSON.stringify(prediction).substring(0, 500));
 
-        // Если результат ещё не готов, ждём до 30 секунд
+        // Проверяем на ошибки от Replicate
+        if (prediction.error) {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'Replicate error: ' + prediction.error }),
+            };
+        }
+
+        if (prediction.detail) {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'Replicate detail: ' + prediction.detail }),
+            };
+        }
+
+        // Если результат ещё не готов, ждём
         if (prediction.status === 'processing' || prediction.status === 'starting') {
+            console.log('Waiting for completion...');
             const result = await waitForCompletion(prediction.urls.get);
             return {
                 statusCode: 200,
@@ -46,11 +73,25 @@ exports.handler = async (event) => {
             };
         }
 
+        // Если сразу готов
+        if (prediction.status === 'succeeded') {
+            return {
+                statusCode: 200,
+                body: JSON.stringify(prediction),
+            };
+        }
+
+        // Любой другой статус
         return {
-            statusCode: 200,
-            body: JSON.stringify(prediction),
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: 'Unexpected status: ' + prediction.status,
+                fullResponse: prediction 
+            }),
         };
+
     } catch (error) {
+        console.error('Function error:', error.message);
         return {
             statusCode: 500,
             body: JSON.stringify({ error: error.message }),
@@ -58,12 +99,12 @@ exports.handler = async (event) => {
     }
 };
 
-// Функция ожидания завершения генерации
 async function waitForCompletion(getUrl) {
     let attempts = 0;
-    const maxAttempts = 15; // 15 попыток по 2 секунды = 30 секунд максимум
+    const maxAttempts = 15;
 
     while (attempts < maxAttempts) {
+        console.log(`Polling attempt ${attempts + 1}...`);
         const response = await fetch(getUrl, {
             headers: {
                 'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
@@ -75,13 +116,12 @@ async function waitForCompletion(getUrl) {
             return data;
         }
         if (data.status === 'failed') {
-            throw new Error('AI generation failed');
+            throw new Error('AI generation failed: ' + JSON.stringify(data));
         }
 
-        // Ждём 2 секунды перед следующей проверкой
         await new Promise(resolve => setTimeout(resolve, 2000));
         attempts++;
     }
 
-    throw new Error('Generation timed out. Please try again.');
+    throw new Error('Generation timed out after 30 seconds');
 }
