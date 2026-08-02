@@ -37,7 +37,7 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: 'zylim0702/qr_code_controlnet',
+                version: 'zylim0702/qr_code_controlnet_v2',
                 input: {
                     url: text,
                     image: image,
