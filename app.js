@@ -1,33 +1,52 @@
 // Ищем элементы на странице по их id
-const generateBtn = document.getElementById('generate-btn'); // кнопка
-const textInput = document.getElementById('text-input');     // поле ввода
-const qrResult = document.getElementById('qr-result');       // контейнер для QR
+const generateBtn = document.getElementById('generate-btn');
+const textInput = document.getElementById('text-input');
+const imageInput = document.getElementById('image-input');
+const qrResult = document.getElementById('qr-result');
 
 // Когда кнопка нажата, выполняем функцию
 generateBtn.addEventListener('click', function() {
-    // 1. Получаем текст, который ввёл пользователь
-    const text = textInput.value.trim(); // trim() убирает пробелы по краям
+    const text = textInput.value.trim();
 
-    // 2. Проверяем: если поле пустое — показываем предупреждение и выходим
+    // Проверяем текст
     if (text === '') {
         alert('Пожалуйста, введи текст или ссылку!');
-        return; // останавливаем функцию
+        return;
     }
 
-    // 3. Очищаем контейнер от предыдущего QR-кода (если был)
+    // Очищаем контейнер
     qrResult.innerHTML = '';
 
-    // 4. Создаём новый QR-код
-    // QRCode.js ожидает, что мы передадим HTML-элемент, куда поместить код
+    // Создаём QR-код
     new QRCode(qrResult, {
-        text: text,         // что зашифровать
-        width: 256,         // размер картинки в пикселях
-        height: 256,
-        colorDark: '#00ffff',  // цвет тёмных модулей (неон циан)
-        colorLight: '#0d0d0d', // цвет фона (тёмный)
-        correctLevel: QRCode.CorrectLevel.H // высокий уровень коррекции ошибок
+        text: text,
+        width: 300,
+        height: 300,
+        colorDark: '#00ffff',
+        colorLight: '#0d0d0d',
+        correctLevel: QRCode.CorrectLevel.H
     });
 
-    // Дополнительно: убираем надпись-заглушку, если она была
-    // Но мы уже очистили innerHTML, так что всё ок.
+    // Если загружена картинка — вставляем её в центр QR
+    if (imageInput.files && imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.position = 'absolute';
+            img.style.width = '60px';
+            img.style.height = '60px';
+            img.style.borderRadius = '8px';
+            img.style.top = '50%';
+            img.style.left = '50%';
+            img.style.transform = 'translate(-50%, -50%)';
+            img.style.background = 'white';
+            img.style.padding = '4px';
+            img.style.boxShadow = '0 0 10px rgba(0,255,255,0.5)';
+
+            qrResult.style.position = 'relative';
+            qrResult.appendChild(img);
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+    }
 });
