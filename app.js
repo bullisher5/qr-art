@@ -37,7 +37,7 @@ function updateAICounter() {
     const usage = getAIUsage();
     const remaining = Math.max(0, 3 - usage.count);
     countRemaining.textContent = remaining;
-    if (remaining <= 0) {
+    if (remaining <= 0 && currentMode === 'ai') {
         generateBtn.disabled = true;
         generateBtn.style.opacity = '0.5';
         statusMsg.textContent = 'Free AI limit reached. Come back tomorrow!';
@@ -58,6 +58,7 @@ classicModeBtn.addEventListener('click', function() {
     generateBtn.textContent = 'Generate QR Code';
     qrResult.innerHTML = '<p>Your QR code will appear here</p>';
     downloadBtn.style.display = 'none';
+    logoDataUrl = null;
 });
 
 aiModeBtn.addEventListener('click', function() {
@@ -71,6 +72,7 @@ aiModeBtn.addEventListener('click', function() {
     generateBtn.textContent = 'Generate AI Art QR';
     qrResult.innerHTML = '<p>Your AI art QR will appear here</p>';
     downloadBtn.style.display = 'none';
+    logoDataUrl = null;
 });
 
 // === Генерация ===
@@ -89,7 +91,7 @@ generateBtn.addEventListener('click', async function() {
     }
 });
 
-// === Classic QR (как раньше) ===
+// === Classic QR ===
 function generateClassicQR(text) {
     qrResult.innerHTML = '';
     logoDataUrl = null;
@@ -164,6 +166,14 @@ async function generateAIQR(text) {
 
         const data = await response.json();
 
+        // Показываем детальную ошибку для отладки
+        if (data.error) {
+            statusMsg.textContent = '❌ ' + data.error;
+            qrResult.innerHTML = '<p style="color: red;">Error details above. Try a different image or text.</p>';
+            console.error('Server error:', data);
+            return;
+        }
+
         if (data.output && data.output.length > 0) {
             // Показываем AI-арт
             qrResult.innerHTML = `<img src="${data.output[0]}" alt="AI QR Art" style="max-width: 100%; border-radius: 10px;">`;
@@ -175,10 +185,11 @@ async function generateAIQR(text) {
         } else if (data.status === 'processing') {
             statusMsg.textContent = '⏳ Still processing... Click Generate again.';
         } else {
-            statusMsg.textContent = '❌ Generation failed. Try a different image.';
+            statusMsg.textContent = '❌ Unexpected response. Check console.';
+            console.error('Full response:', data);
         }
     } catch (error) {
-        statusMsg.textContent = '❌ Server error. Please try again.';
+        statusMsg.textContent = '❌ Network error: ' + error.message;
         console.error(error);
     }
 }
