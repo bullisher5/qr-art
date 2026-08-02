@@ -37,7 +37,7 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                version: 'zylim0702/qr_code_controlnet:628e604e13cf63d8ec58bd4d238474e8986b054bc5e1326e50995fdbc851c557',
+                version: 'qr2ai/3d_qr_code_ai_art_generator:dbd6e68583b30030f872f6aecb091b60979bc80ccfc8d2f03d575383ebbab13f',
                 input: {
                     url: text,
                     image: image,
