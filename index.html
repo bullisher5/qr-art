@@ -1,30 +1,31 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI QR-арт</title>
+    <title>AI QR Art Generator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Создай арт-QR</h1>
+        <h1>Create Art QR</h1>
 
-        <label for="text-input">Что зашифровать:</label>
-        <input type="text" id="text-input" placeholder="https://example.com или любой текст">
+        <label for="text-input">What to encode:</label>
+        <input type="text" id="text-input" placeholder="https://example.com or any text">
 
-        <label for="image-input">Выбери картинку для стиля:</label>
+        <label for="image-input">Choose an image for style:</label>
         <input type="file" id="image-input" accept="image/*">
 
-        <button id="generate-btn">Сгенерировать QR-код</button>
+        <button id="generate-btn">Generate QR Code</button>
 
         <div id="qr-result">
-            <p>Твой QR-код будет здесь</p>
+            <p>Your QR code will appear here</p>
         </div>
+
+        <button id="download-btn" style="display: none;">Download QR</button>
     </div>
-<!-- Библиотека для создания QR-кодов -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<!-- Наш скрипт -->
-<script src="app.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
