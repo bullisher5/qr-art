@@ -13,10 +13,10 @@ const aiCounter = document.getElementById('ai-counter');
 const countRemaining = document.getElementById('count-remaining');
 
 // === Состояние ===
-let currentMode = 'classic'; // 'classic' или 'ai'
+let currentMode = 'classic';
 let logoDataUrl = null;
 
-// === Счётчик AI-генераций (localStorage) ===
+// === Счётчик AI-генераций ===
 function getAIUsage() {
     const today = new Date().toDateString();
     const stored = JSON.parse(localStorage.getItem('ai-usage') || '{}');
@@ -134,7 +134,7 @@ function generateClassicQR(text) {
     downloadBtn.style.display = 'inline-block';
 }
 
-// === AI Art QR ===
+// === AI Art QR (QuickChart — прямой запрос) ===
 async function generateAIQR(text) {
     const usage = getAIUsage();
     if (usage.count >= 3) {
@@ -147,50 +147,41 @@ async function generateAIQR(text) {
         return;
     }
 
-    statusMsg.textContent = '✨ Generating AI art... This may take up to 30 seconds.';
+    statusMsg.textContent = '✨ Generating AI art...';
     qrResult.innerHTML = '<p style="color: #00ffff;">🎨 AI is creating your art QR...</p>';
     downloadBtn.style.display = 'none';
 
-    // Конвертируем картинку в base64
     const file = imageInput.files[0];
-    const base64Image = await toBase64(file);
+    const base64Image = await toBase64Full(file);
+
+    // Формируем URL для QuickChart QR Art API
+    const encodedText = encodeURIComponent(text);
+    const encodedImage = encodeURIComponent(base64Image);
+    const qrArtUrl = `https://api.quickchart.io/v1/qr-art?url=${encodedText}&image=${encodedImage}&size=512`;
 
     try {
-        const response = await fetch('/.netlify/functions/generate-art-qr', {
-            method: 'POST',
-            body: JSON.stringify({
-                text: text,
-                image: base64Image,
-            }),
-        });
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = qrArtUrl;
 
-        const data = await response.json();
+        img.onload = function() {
+            qrResult.innerHTML = '';
+            img.style.maxWidth = '100%';
+            img.style.borderRadius = '10px';
+            qrResult.appendChild(img);
 
-        // Показываем детальную ошибку для отладки
-        if (data.error) {
-            statusMsg.textContent = '❌ ' + data.error;
-            qrResult.innerHTML = '<p style="color: red;">Error details above. Try a different image or text.</p>';
-            console.error('Server error:', data);
-            return;
-        }
-
-        if (data.output && data.output.length > 0) {
-            // Показываем AI-арт
-            qrResult.innerHTML = `<img src="${data.output[0]}" alt="AI QR Art" style="max-width: 100%; border-radius: 10px;">`;
+            logoDataUrl = qrArtUrl;
             statusMsg.textContent = '✅ AI art QR generated!';
             incrementAIUsage();
             downloadBtn.style.display = 'inline-block';
-            // Сохраняем URL картинки для скачивания
-            logoDataUrl = data.output[0];
-        } else if (data.status === 'processing') {
-            statusMsg.textContent = '⏳ Still processing... Click Generate again.';
-        } else {
-            statusMsg.textContent = '❌ Unexpected response. Check console.';
-            console.error('Full response:', data);
-        }
+        };
+
+        img.onerror = function() {
+            statusMsg.textContent = '❌ Generation failed. Try a different image or smaller file.';
+            qrResult.innerHTML = '<p style="color: red;">Error loading AI art. Image may be too large.</p>';
+        };
     } catch (error) {
-        statusMsg.textContent = '❌ Network error: ' + error.message;
-        console.error(error);
+        statusMsg.textContent = '❌ Error: ' + error.message;
     }
 }
 
@@ -248,21 +239,29 @@ function downloadAIQR() {
         statusMsg.textContent = 'Generate an AI QR first!';
         return;
     }
-    const link = document.createElement('a');
-    link.download = 'ai-qr-art.png';
-    link.href = logoDataUrl;
-    link.click();
+
+    // Для AI-арта скачиваем через fetch, чтобы обойти CORS
+    fetch(logoDataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'ai-qr-art.png';
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        })
+        .catch(() => {
+            statusMsg.textContent = '❌ Download failed. Right-click the image and save.';
+        });
 }
 
 // === Вспомогательные функции ===
-function toBase64(file) {
+function toBase64Full(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => {
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
+        reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
     });
 }
