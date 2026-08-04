@@ -3,32 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI QR Art Generator</title>
+    <title>Art QR Generator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <h1>Create Art QR</h1>
 
-        <!-- Переключатель режимов -->
-        <div class="mode-switch">
-            <button id="classic-mode-btn" class="mode-btn active">Classic QR</button>
-            <button id="ai-mode-btn" class="mode-btn">AI Art QR</button>
-        </div>
-
         <label for="text-input">What to encode:</label>
         <input type="text" id="text-input" placeholder="https://example.com or any text">
 
-        <label for="image-input">Choose an image for style:</label>
+        <label for="image-input">Choose an image for background:</label>
         <input type="file" id="image-input" accept="image/*">
 
-        <!-- Выбор цвета (только для Classic) -->
-        <div id="color-section">
-            <label for="color-picker">QR color:</label>
-            <input type="color" id="color-picker" value="#00ffff">
+        <label for="color-picker">QR color:</label>
+        <input type="color" id="color-picker" value="#00ffff">
+
+        <div class="slider-group">
+            <label for="opacity-slider">Background opacity: <span id="opacity-value">40</span>%</label>
+            <input type="range" id="opacity-slider" min="10" max="90" value="40">
         </div>
 
-        <button id="generate-btn">Generate QR Code</button>
+        <button id="generate-btn">Generate Art QR</button>
         <div id="status-message"></div>
 
         <div id="qr-result">
@@ -36,11 +32,6 @@
         </div>
 
         <button id="download-btn" style="display: none;">Download QR</button>
-
-        <!-- Счётчик AI-генераций -->
-        <div id="ai-counter" style="display: none;">
-            <p>Free AI generations today: <span id="count-remaining">3</span>/3</p>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
