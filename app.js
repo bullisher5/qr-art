@@ -134,7 +134,44 @@ function generateClassicQR(text) {
     downloadBtn.style.display = 'inline-block';
 }
 
-// === AI Art QR (QuickChart — прямой запрос) ===
+// === Сжатие изображения ===
+function compressImage(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const maxSize = 512;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height && width > maxSize) {
+                    height = (height * maxSize) / width;
+                    width = maxSize;
+                } else if (height > maxSize) {
+                    width = (width * maxSize) / height;
+                    height = maxSize;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // JPEG с качеством 0.7 для сильного сжатия
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// === AI Art QR (QuickChart с POST-запросом) ===
 async function generateAIQR(text) {
     const usage = getAIUsage();
     if (usage.count >= 3) {
@@ -147,22 +184,71 @@ async function generateAIQR(text) {
         return;
     }
 
-    statusMsg.textContent = '✨ Generating AI art...';
+    statusMsg.textContent = '✨ Compressing and generating AI art...';
     qrResult.innerHTML = '<p style="color: #00ffff;">🎨 AI is creating your art QR...</p>';
     downloadBtn.style.display = 'none';
 
-    const file = imageInput.files[0];
-    const base64Image = await toBase64Full(file);
-
-    // Формируем URL для QuickChart QR Art API
-    const encodedText = encodeURIComponent(text);
-    const encodedImage = encodeURIComponent(base64Image);
-    const qrArtUrl = `https://api.quickchart.io/v1/qr-art?url=${encodedText}&image=${encodedImage}&size=512`;
-
     try {
+        // Сжимаем изображение
+        const compressedImage = await compressImage(imageInput.files[0]);
+
+        // Используем POST-запрос к QuickChart с телом JSON
+        const response = await fetch('https://api.quickchart.io/v1/qr-art', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                url: text,
+                image: compressedImage,
+                size: 512,
+                format: 'png',
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('QuickChart error:', errorText);
+            statusMsg.textContent = '❌ API error. Trying fallback...';
+            // Пробуем GET-запрос как запасной вариант
+            await generateAIQRFallback(text, compressedImage);
+            return;
+        }
+
+        const blob = await response.blob();
+        const resultUrl = URL.createObjectURL(blob);
+
+        qrResult.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = resultUrl;
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '10px';
+        qrResult.appendChild(img);
+
+        logoDataUrl = resultUrl;
+        statusMsg.textContent = '✅ AI art QR generated!';
+        incrementAIUsage();
+        downloadBtn.style.display = 'inline-block';
+
+    } catch (error) {
+        console.error('Error:', error);
+        statusMsg.textContent = '❌ ' + error.message;
+    }
+}
+
+// === Запасной GET-запрос ===
+async function generateAIQRFallback(text, compressedImage) {
+    try {
+        const encodedText = encodeURIComponent(text);
+        // Берём только base64-часть, без data:image/jpeg;base64,
+        const base64Data = compressedImage.split(',')[1];
+        const encodedImage = encodeURIComponent(base64Data);
+
+        const url = `https://api.quickchart.io/v1/qr-art?url=${encodedText}&image=${encodedImage}&size=512&format=png`;
+
         const img = new Image();
         img.crossOrigin = 'anonymous';
-        img.src = qrArtUrl;
+        img.src = url;
 
         img.onload = function() {
             qrResult.innerHTML = '';
@@ -170,18 +256,18 @@ async function generateAIQR(text) {
             img.style.borderRadius = '10px';
             qrResult.appendChild(img);
 
-            logoDataUrl = qrArtUrl;
+            logoDataUrl = url;
             statusMsg.textContent = '✅ AI art QR generated!';
             incrementAIUsage();
             downloadBtn.style.display = 'inline-block';
         };
 
         img.onerror = function() {
-            statusMsg.textContent = '❌ Generation failed. Try a different image or smaller file.';
-            qrResult.innerHTML = '<p style="color: red;">Error loading AI art. Image may be too large.</p>';
+            statusMsg.textContent = '❌ Generation failed. Please try another image.';
+            qrResult.innerHTML = '<p style="color: red;">Unable to generate AI art.</p>';
         };
     } catch (error) {
-        statusMsg.textContent = '❌ Error: ' + error.message;
+        statusMsg.textContent = '❌ Fallback also failed.';
     }
 }
 
@@ -240,7 +326,6 @@ function downloadAIQR() {
         return;
     }
 
-    // Для AI-арта скачиваем через fetch, чтобы обойти CORS
     fetch(logoDataUrl)
         .then(res => res.blob())
         .then(blob => {
@@ -252,18 +337,8 @@ function downloadAIQR() {
             URL.revokeObjectURL(url);
         })
         .catch(() => {
-            statusMsg.textContent = '❌ Download failed. Right-click the image and save.';
+            statusMsg.textContent = '❌ Right-click the image and select Save.';
         });
-}
-
-// === Вспомогательные функции ===
-function toBase64Full(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-    });
 }
 
 // === Инициализация ===
